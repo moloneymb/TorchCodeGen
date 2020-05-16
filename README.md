@@ -1,2 +1,2 @@
 # TorchCodeGen
-Code generating C# and C++ interop with libtorch
+Code for generating C# and C++ interface for libtorch

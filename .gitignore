@@ -1,0 +1,7 @@
+src/bin/Debug/FParsec.dll
+src/bin/
+src/obj/
+src/packages/
+*.suo
+*.un~
+*.md~
