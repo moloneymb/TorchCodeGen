@@ -206,8 +206,8 @@ let loadSchemas(path:string) =
                     } 
                     
                 yield {
-                    firstName = match names with | [_] -> "" | [x] | [x;_] -> x | _ -> failwith "err"
-                    secondName = match names with | [_;x] -> x | _ -> failwith "err"
+                    firstName = match names with | [x] | [x;_] -> x | _ -> failwith "err"
+                    secondName = match names with | [_] -> "" | [_;x] -> x | _ -> failwith "err"
                     inputs = inputs |> List.map f |> List.toArray
                     outputs = outputs |> List.map f |> List.toArray
                     attributes = attributes

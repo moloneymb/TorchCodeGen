@@ -58,7 +58,11 @@ module Dispatcher =
 
 
 let diffViewer = 
-    lazy DiffPlex.Wpf.Controls.DiffViewer()
+    lazy 
+        DiffPlex.Wpf.Controls.DiffViewer(
+            IgnoreWhiteSpace = false, 
+            FontFamily = Windows.Media.FontFamily("Courier New"))
+        
 
 let diffWindow = 
     lazy 

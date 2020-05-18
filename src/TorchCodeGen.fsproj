@@ -49,9 +49,7 @@
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
-    <None Include="Rust\torch_api_generated.h" />
-    <None Include="Rust\torch_api_generated.cpp.h" />
-    <None Include="TorchMetatadata.yaml" />
+    <None Include="TorchMetadata.yaml" />
     <None Include="WPFEventLoop.fsx" />
     <None Include="DiffPlex.fsx" />
     <None Include="Clippy.fsx" />
@@ -62,6 +60,11 @@
     <None Include="TorchCodeGen.fsx" />
     <Compile Include="Program.fs" />
     <None Include="Rust\gen.ml" />
+    <None Include="Rust\torch_api_generated.h" />
+    <None Include="Rust\torch_api_generated.cpp.h" />
+    <None Include="ModuleCodeGen.fsx" />
+    <None Include="TargetModuleCpp.fsx" />
+    <None Include="CodeGenBase.fsx" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="DiffPlex">

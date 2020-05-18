@@ -1,57 +1,12 @@
-﻿#load "Clippy.fsx"
-#load @"TorchMetadataParser.fsx"
-#load @"TorchMetadataExtensions.fsx"
+﻿#load "CodeGenBase.fsx"
+
 open Clippy
 open TorchMetadataParser
 open TorchMetadataExtensions
-
-// TODO fix non namespace function names to only be in the first name and not the second
-// TODO ("","new_empty") figur out new Tensor, self?
-// TODO newLong, also note at::ScalarType(at::kLong) instead of int64_t 
-// TODO DiffPlex for https://github.com/mmanela/diffplex/
-
-let schemas = loadSchemas(System.IO.Path.Combine(__SOURCE_DIRECTORY__, "TorchMetadata.yaml"))
-
-let getSchmea(firstName,secondName) = 
-    schemas |> Array.find (fun x -> x.firstName = firstName && x.secondName = secondName)
-
-let emptyModifiers : CombinedModifier = { array = None; alpha = None; optional = false }
-
-let alphaBangModifiers : CombinedModifier = { array = None; alpha = Some('a',true); optional = false }
-
-let simpleTensorOut = 
-    {
-        baseType = BaseType.Tensor; 
-        modifiers = emptyModifiers;
-        name = None; 
-        default_ = None
-    }
-
-let searchSchemas(name: string) = 
-    schemas 
-    |> Array.filter (fun x -> x.firstName.Contains(name) || x.secondName.Contains(name)) 
-    |> Array.map (fun x -> x.firstName,x.secondName)
-
-let printAsTuple(xs:string[]) = xs |> String.concat ", " |> sprintf "(%s)"
-
-let printParamTypes(xs:ParamType[]) = 
-    [|for x in xs -> 
-       sprintf  "%s%s%s%s" 
-            x.baseType.BaseString 
-            x.modifiers.BaseString 
-            (match x.name with | None -> "" | Some(x) ->" " + x)
-            (match x.default_ with | None -> "" | Some(x) -> "=" + x)
-    |]
-    |> printAsTuple
-
-let printSchemaSimple(schema: Func) = 
-    // NOTE: This ignores attributes for now
-    printfn "%s.%s%s -> %s" 
-        schema.firstName 
-        schema.secondName 
-        (printParamTypes(schema.inputs))
-        (printParamTypes(schema.outputs))
-
+open DiffPlex
+open System.IO
+open TargetModuleCpp
+open CodeGenBase
 
 let getCppReturn(schema: Func) = 
     if schema.outputs = [|simpleTensorOut|] then
