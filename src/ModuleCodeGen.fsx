@@ -46,15 +46,15 @@ let genHeader(schema: Func) =
     let tensorInputs = schema.inputs |> Array.filter (fun x -> x.baseType = BaseType.Tensor)
     let extraParams = 
         tensorInputs.[1..] 
-        |> Array.choose (fun x -> if x.modifiers.optional then Some(sprintf "const bool with_%s" x.name.Value) else None)
+        |> Array.choose (fun x -> if x.optional then Some(sprintf "const bool with_%s" x.name) else None)
 
     let padRight = 24
     [|
         yield X.Module, sprintf " %s_ctor(%s, NNAnyModule* outAsAnyModule);" modulePrefix ([|yield standardParams; yield! extraParams|] |> String.concat ", ")
         yield X.Tensor, sprintf " %s_forward(const NNModule module, const Tensor tensor);" modulePrefix 
         for input in tensorInputs.[1..] |> Array.rev do // 1st is known to be "input"
-            yield X.Tensor, sprintf " %s_%s(const NNModule module);" modulePrefix input.name.Value
-            yield X.Void, sprintf " %s_set_%s(const NNModule module, const Tensor tensor);" modulePrefix input.name.Value
+            yield X.Tensor, sprintf " %s_%s(const NNModule module);" modulePrefix input.name
+            yield X.Void, sprintf " %s_set_%s(const NNModule module, const Tensor tensor);" modulePrefix input.name
     |] 
     |> Array.map (fun (x,y) -> (sprintf "%s(%s)" prefix  x.CPP).PadRight(padRight) + y)
     |> String.concat Environment.NewLine
@@ -66,14 +66,14 @@ let genCpp(schema: Func) =
     let tensorInputs = schema.inputs |> Array.filter (fun x -> x.baseType = BaseType.Tensor)
     let extraParams = 
         tensorInputs.[1..] 
-        |> Array.choose (fun x -> if x.modifiers.optional then Some(sprintf "const bool with_%s" x.name.Value) else None)
+        |> Array.choose (fun x -> if x.optional then Some(sprintf "const bool with_%s" x.name) else None)
 
     let main = 
         func (sprintf "NNModule %s_ctor(%s, NNAnyModule* outAsAnyModule)" modulePrefix ([|yield standardParams; yield! extraParams|] |> String.concat ", ")) (
             macro("CATCH_RETURN_NNModule", true) [|
                 yield sprintf "auto opts = torch::nn::%sOptions(input_size, output_size);" name
-                for optInput in tensorInputs.[1..] |> Array.filter (fun x -> x.modifiers.optional) do
-                    yield sprintf "    opts = opts.%s(with_%s);" optInput.name.Value optInput.name.Value
+                for optInput in tensorInputs.[1..] |> Array.filter (fun x -> x.optional) do
+                    yield sprintf "    opts = opts.%s(with_%s);" optInput.name optInput.name
                 yield ""
                 yield sprintf "auto mod = std::make_shared<torch::nn::%sImpl>(opts);" name
                 yield ""
@@ -95,7 +95,7 @@ let genCpp(schema: Func) =
         tensorInputs.[1..] 
         |> Array.rev 
         |> Array.map (fun input -> 
-            let iName = input.name.Value
+            let iName = input.name
             [|
                 func (sprintf "Tensor %s_%s(const NNModule module)" modulePrefix iName) (
                     macro("CATCH_TENSOR",false) [|sprintf "(*module)->as<torch::nn::%s>()->%s" name iName|])
@@ -117,7 +117,7 @@ let genCSharp(schema: Func) =
     //let standardParams = "const int64_t input_size, const int64_t output_size"
     let tensorInputs = schema.inputs |> Array.filter (fun x -> x.baseType = BaseType.Tensor)
     /// This may include the first input tensor but this should never be optional
-    let optionalTensors =  tensorInputs |> Array.filter (fun x -> x.modifiers.optional)
+    let optionalTensors =  tensorInputs |> Array.filter (fun x -> x.optional)
     let head  = """// Copyright (c) Microsoft Corporation and contributors.  All Rights Reserved.  See License.txt in the project root for license information.
 using System;
 using System.Collections.Generic;
@@ -144,8 +144,8 @@ using TorchSharp.Tensor;"""
                         "return new TorchTensor (res);"
                        |])
                    for input in tensorInputs.[1..] |> Array.rev do
-                       let iName = input.name.Value
-                       let optional = input.modifiers.optional
+                       let iName = input.name
+                       let optional = input.optional
                        yield! extern_ (sprintf "IntPtr THSNN_%s_%s (Module.HType module);" name iName)
                        yield! extern_ (sprintf "void THSNN_%s_set_%s (Module.HType module, IntPtr tensor);" name iName)
                        yield ""
@@ -161,7 +161,7 @@ using TorchSharp.Tensor;"""
                                     "Torch.CheckForErrors ();" |])
         // NOTE: Defaults may not always need to be true...
                 |])
-            let ots f = optionalTensors |> Array.map (fun x -> f x.name.Value) |> String.concat ", "
+            let ots f = optionalTensors |> Array.map (fun x -> f x.name) |> String.concat ", "
             /// start name with a capital letter
             let otsWithCap f = ots (fun x -> x |> capitalizeFirst |> f)
             yield! func("public static partial class Modules") ([|
@@ -184,5 +184,5 @@ using TorchSharp.Tensor;"""
         |> String.concat Environment.NewLine
     head + Environment.NewLine + Environment.NewLine + body
 
-linear |> genCSharp |> DiffPlex.showDiff(Linear.csharp)
+// linear |> genCSharp |> DiffPlex.showDiff(Linear.csharp)
 

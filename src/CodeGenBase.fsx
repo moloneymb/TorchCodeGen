@@ -22,12 +22,11 @@ let getSchmea(firstName,secondName) =
     schemas |> Array.find (fun x -> x.firstName = firstName && x.secondName = secondName)
 
 
-let emptyModifiers : CombinedModifier = { array = None; alpha = None; optional = false }
+//let emptyModifiers : CombinedModifier = { array = None; alpha = None; optional = false }
+//let alphaBangModifiers : CombinedModifier = { array = None; alpha = Some('a',true); optional = false }
 
-let alphaBangModifiers : CombinedModifier = { array = None; alpha = Some('a',true); optional = false }
-
-let simpleTensorOut = { baseType = BaseType.Tensor; modifiers = emptyModifiers; name = None; default_ = None }
-let simpleTensorInput = {simpleTensorOut with  name = Some("input")}
+let simpleTensorOut : ParamType = { baseType = BaseType.Tensor;  name = ""; defaultValue = None; array = None; alpha = None; optional = false }
+let simpleTensorInput = {simpleTensorOut with  name = "input"}
 
 let searchSchemas(name: string) = 
     schemas 
@@ -40,9 +39,9 @@ let printParamTypes(xs:ParamType[]) =
     [|for x in xs -> 
        sprintf  "%s%s%s%s" 
             x.baseType.BaseString 
-            x.modifiers.BaseString 
-            (match x.name with | None -> "" | Some(x) ->" " + x)
-            (match x.default_ with | None -> "" | Some(x) -> "=" + x)
+            x.BaseString 
+            (match x.name with | "" -> "" | x ->" " + x)
+            (match x.defaultValue with | None -> "" | Some(x) -> "=" + x)
     |]
     |> printAsTuple
 

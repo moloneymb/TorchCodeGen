@@ -17,19 +17,19 @@ let getCppParams(schema: Func) =
     [|
         for input in schema.inputs do
             match input.baseType with
-            | BaseType.Scalar when input.modifiers = emptyModifiers -> 
-                yield sprintf "const Scalar %s" input.name.Value
-            | BaseType.ScalarType when input.name = Some("dtype") -> 
+            | BaseType.Scalar when input.IsBase -> 
+                yield sprintf "const Scalar %s" input.name
+            | BaseType.ScalarType when input.name = "dtype" -> 
                 yield sprintf "const int8_t dtype" 
             //| BaseType.Device -> yield "const char * device"
             | BaseType.Astrix -> () // TODO
             | BaseType.Layout -> () // TODO
             | BaseType.Device -> 
                 yield "const char * device"
-            | BaseType.Int when input.modifiers.array.IsSome ->
-                yield sprintf "const int64_t * %s" input.name.Value
-                yield sprintf "const int %s_length" input.name.Value
-            | BaseType.Bool when input.name = Some("pin_memory") -> ()
+            | BaseType.Int when input.array.IsSome ->
+                yield sprintf "const int64_t * %s" input.name
+                yield sprintf "const int %s_length" input.name
+            | BaseType.Bool when input.name = "pin_memory" -> ()
             | _ -> failwithf "todo support CppParams %A" input
         yield "const bool requires_grad" // TODO figure out if/why we need this
     |] 
@@ -39,7 +39,7 @@ let getCppOptions(schema: Func) =
     [|
         for input in schema.inputs do
             match input.baseType with
-            | BaseType.ScalarType when input.name = Some("dtype") ->
+            | BaseType.ScalarType when input.name = "dtype" ->
                 yield ".dtype(at::ScalarType(dtype))"
             | BaseType.Astrix -> () // TODO
             | BaseType.Layout -> () // TODO
@@ -58,9 +58,9 @@ let getCppTorchParams(schema: Func) =
     [|
         for input in schema.inputs do
             match input.baseType with
-            | BaseType.Int when input.modifiers.array.IsSome ->
-                yield sprintf "at::IntList(%s,%s_length)" input.name.Value input.name.Value
-            | BaseType.Scalar -> yield "*" + input.name.Value
+            | BaseType.Int when input.array.IsSome ->
+                yield sprintf "at::IntList(%s,%s_length)" input.name input.name
+            | BaseType.Scalar -> yield "*" + input.name
             | _ -> ()
         yield "options"
     |]
@@ -146,15 +146,15 @@ let unaryToCpp (name: string) (schema: Func) : Result<string,string> =
     match schema.inputs, schema.outputs with
     | [|input|], [|output|] ->
         if (input.baseType = BaseType.Tensor && output.baseType = BaseType.Tensor) &&
-           ((input.modifiers = emptyModifiers && output.modifiers = emptyModifiers) || 
-            (input.modifiers = alphaBangModifiers && output.modifiers = alphaBangModifiers)) then
+           ((input.IsBase && output.IsBase) || 
+            (input.IsBase && input.IsSimpleAlpha && output.IsBase && output.IsSimpleAlpha)) then
             Ok(sprintf """Tensor THSTensor_%s(const Tensor %s)
 {
     CATCH_RETURN_TENSOR(%s->%s());
-}"""  name input.name.Value input.name.Value name )
+}"""  name input.name input.name name )
         else
             Error(sprintf "%s input/output modifiers not supported %A, %A" 
-                    name input.modifiers output.modifiers)
+                    name input output)
     | _ -> Error(sprintf "%s non - standard unary" name)
 
 // 125 fit this simple mold

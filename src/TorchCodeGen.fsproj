@@ -65,6 +65,7 @@
     <None Include="ModuleCodeGen.fsx" />
     <None Include="TargetModuleCpp.fsx" />
     <None Include="CodeGenBase.fsx" />
+    <None Include="LowLevelCodeGen.fsx" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="DiffPlex">

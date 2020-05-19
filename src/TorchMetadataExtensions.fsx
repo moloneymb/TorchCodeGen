@@ -95,7 +95,7 @@ let scalars =
         "Double", ScalarType.Double
     |]
 
-type CombinedModifier with
+type ParamType with
     member this.BaseString =
         let array = 
             match this.array with
@@ -109,3 +109,26 @@ type CombinedModifier with
         let optional = if this.optional then "?" else ""
         alpha + array + optional
 
+    /// This is a simple parameter
+    member this.IsBase = 
+        this.array = None && this.optional = false && this.defaultValue = None && this.alpha = None
+    member this.IsSimpleAlpha = this.IsBase && this.alpha = Some('a',true)
+    member this.IsArray = this.array.IsSome
+
+let (|Function|_|) (x: Func) = 
+    x.attributes 
+    |> Array.exists (function | Variants(true,_) -> true | _ -> false)
+    |> function | true -> Some(x) | false -> None
+
+let (|Method|_|) (x: Func) = 
+    x.attributes 
+    |> Array.exists (function | Variants(_,true) -> true | _ -> false)
+    |> function | true -> Some(x) | false -> None
+
+let (|FunctionAndMethod|_|) (x: Func) = 
+    match x with
+    | Method(_) | Function(_) -> Some(x)
+    | _ -> None
+
+type Func with
+    member this.IsFixedOutput = this.outputs |> Array.exists (fun x -> x.IsArray) |> not

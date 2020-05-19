@@ -112,22 +112,17 @@ let funcParser =
         <|> (typeSignature |>> fun x -> [x]))
 
 [<RequireQualifiedAccess>]
-type CombinedModifier = 
+type ParamType = 
     {
+        baseType : BaseType
+        name : string
+        defaultValue : string option
         /// int[] and int[2]
         array : int option option
         /// Tensor(a), Tensor(a!)
         alpha : (char * bool) option
         /// Tensor?, 
         optional : bool
-    }
-
-type ParamType = 
-    {
-        baseType : BaseType
-        modifiers : CombinedModifier
-        name : string option
-        default_ : string option
     }
 
 type Attribute = 
@@ -195,14 +190,11 @@ let loadSchemas(path:string) =
                 let f (((baseType: BaseType,modifiers: Modifier list),name: string option),default_: string option) :  ParamType =
                     {
                         baseType  = baseType
-                        modifiers = 
-                            { 
-                                array = modifiers |> List.choose (function | Modifier.Array(x) -> Some(x) | _ -> None) |> List.tryHead 
-                                alpha = modifiers |> List.choose (function | Modifier.Alpha(x,y) -> Some(x,y) | _ -> None) |> List.tryHead
-                                optional = modifiers |> List.exists ((=) Modifier.Optional)
-                            }
-                        name = name
-                        default_ = default_
+                        array = modifiers |> List.choose (function | Modifier.Array(x) -> Some(x) | _ -> None) |> List.tryHead 
+                        alpha = modifiers |> List.choose (function | Modifier.Alpha(x,y) -> Some(x,y) | _ -> None) |> List.tryHead
+                        optional = modifiers |> List.exists ((=) Modifier.Optional)
+                        name = name |> Option.defaultValue ""
+                        defaultValue = default_
                     } 
                     
                 yield {
