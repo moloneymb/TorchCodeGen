@@ -1,4 +1,5 @@
-﻿// NOTE: 229 functions have PythonModuleNN attribute, many do not, e.g. conv2d
+﻿(*
+// NOTE: 229 functions have PythonModuleNN attribute, many do not, e.g. conv2d
 // TODO figure out a schema for macros 
 #load "CodeGenBase.fsx"
 open System
@@ -185,4 +186,4 @@ using TorchSharp.Tensor;"""
     head + Environment.NewLine + Environment.NewLine + body
 
 // linear |> genCSharp |> DiffPlex.showDiff(Linear.csharp)
-
+*)

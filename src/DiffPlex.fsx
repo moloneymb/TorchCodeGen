@@ -77,6 +77,7 @@ let showDiff (oldText:string) (newText: string) =
         let win = diffWindow.Force()
         let viewer = diffViewer.Force()
         win.Show()
+        win.Topmost <- false
         win.Topmost <- true
         viewer.NewText <- newText
         viewer.OldText <- oldText

@@ -49,23 +49,29 @@
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
-    <None Include="TorchMetadata.yaml" />
+    <None Include="Declarations-v1.5.0.yaml.txt" />
+    <None Include="TorchMetadata.yaml.txt" />
+    <None Include="TargetModuleCpp.fsx" />
     <None Include="WPFEventLoop.fsx" />
     <None Include="DiffPlex.fsx" />
     <None Include="Clippy.fsx" />
-    <None Include="TorchMetadataExtensions.fsx" />
+    <None Include="CodeGenCommon.fsx" />
+    <None Include="V1\V1Parser.fsx" />
+    <None Include="V1\V1CodeGenBase.fsx" />
+    <None Include="V1\V1CodeGenExtensions.fsx" />
+    <None Include="V1\V1MetadataParser.fsx" />
+    <None Include="V1\V1CodeGenLLCpp.fsx" />
+    <None Include="V1\V1CodeGenHLCSharp.fsx" />
     <None Include="App.config" />
     <Content Include="packages.config" />
-    <None Include="TorchMetadataParser.fsx" />
     <None Include="TorchCodeGen.fsx" />
     <Compile Include="Program.fs" />
     <None Include="Rust\gen.ml" />
     <None Include="Rust\torch_api_generated.h" />
     <None Include="Rust\torch_api_generated.cpp.h" />
-    <None Include="ModuleCodeGen.fsx" />
-    <None Include="TargetModuleCpp.fsx" />
-    <None Include="CodeGenBase.fsx" />
-    <None Include="LowLevelCodeGen.fsx" />
+    <None Include="V2Parser.fsx" />
+    <None Include="V2CodeGenHL.fsx" />
+    <None Include="V2CodeGenLL.fsx" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="DiffPlex">

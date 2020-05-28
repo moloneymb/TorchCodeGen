@@ -132,3 +132,6 @@ let (|FunctionAndMethod|_|) (x: Func) =
 
 type Func with
     member this.IsFixedOutput = this.outputs |> Array.exists (fun x -> x.IsArray) |> not
+    member this.OutputSize = 
+        if not this.IsFixedOutput then None
+        else Some(this.outputs.Length)
