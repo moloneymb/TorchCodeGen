@@ -72,41 +72,7 @@ let filterParams (name: string) (arg: Arg) =
             | BT.ScalarOptional -> None
             | _ -> failwithf "err %A" arg
 
-
-
-
-//if Option.is_some default_value then None
-//else raise Not_a_simple_arg)
-
-
-//let filterParams(xs: Arg[]) = 
-//    xs 
-//    |> Array.filter (fun x -> 
-//        match x.type_ with
-//        | BT.Bool2
-//        | BT.Bool3
-//        | BT.Bool4
-//        | BT.MemoryFormat
-//        | BT.MemoryFormatOptional
-//        | BT.Generator
-//        | BT.Dimname
-//        | BT.DimnameList
-//        | BT.DimnameListOptional
-//        | BT.Storage
-//        | BT.ConstQuantizerPtr
-//        | BT.ScalarOptional -> false
-//        | BT.ScalarTypeOptional -> true
-//        //| BT.String -> false
-//        //| BT.Scalar when x.name = "dtype" -> true
-//        //| BT.Scalar when x.defaultValue.IsSome -> false
-//        
-//        //| BT.TensorOptions when x.defaultValue.IsSome -> false
-//        //| BT.TensorOptionsAnd when x.defaultValue.IsSome -> false
-//        | _ -> true)
-//
-
 module Func = 
-    //linear.inputs.[0].modifiers
     let cTypedArgsList (funcName: string, xs: Arg[]) =
         let xs =  xs |> Array.choose (filterParams funcName)
         [|

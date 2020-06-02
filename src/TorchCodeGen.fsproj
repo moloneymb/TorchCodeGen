@@ -72,6 +72,9 @@
     <None Include="V2Parser.fsx" />
     <None Include="V2CodeGenHL.fsx" />
     <None Include="V2CodeGenLL.fsx" />
+    <None Include="V2CodeGenLLTorchSharp.fsx" />
+    <None Include="Common.fsx" />
+    <None Include="THSTensor.h" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="DiffPlex">
