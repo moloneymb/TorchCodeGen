@@ -18,7 +18,6 @@ let noTensorOptions =
 // NOTES: 
 // convolution_backward_overridable
 
-
 // NOTES:
 let filterParams (name: string) (arg: Arg) = 
     let f(arg: Arg) =
@@ -213,6 +212,7 @@ let funcs =
             "to", [|f "device" BT.Device|]
         |] |> Array.map (fun (name,inputs) -> 
             {baseFunc with name = name; args = [|yield f "self" BT.Tensor; yield! inputs|]})
+
     let schemas = 
         V2Parser.schemas()
         |> Array.filter (fun x -> not x.depricated) 

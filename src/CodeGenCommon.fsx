@@ -29,6 +29,11 @@ let concatWithNewLine (xs:string[][]) : string[] = Array.concatWith xs [|""|]
 
 let indent (xs: string[]) = xs |> Array.map (fun x -> INDENT + x)
 
+let multiLineParams(xs:string[]) = 
+    xs |> Array.mapi (fun i x -> x + if xs.Length - 1 = i then ")" else ",")
+
+let addFinalSemiColon(xs: string[]) = 
+    xs |> Array.mapi (fun i x -> if xs.Length - 1 = i then x+";" else x)
 
 
 module Cpp = 
@@ -59,10 +64,14 @@ module Cpp =
     let func(firstLine) (body: string[]) = 
         [| yield firstLine; yield "{"; yield! body |> indent; yield "}" |]
 
+    let ternaryIfThenElse(conditional : string, then_: string, else_: string) = 
+        sprintf "%s ? %s : %s" conditional then_ else_
+
 
 module CSharp = 
     open Cpp
     let extern_(body: string) = [| "[DllImport (\"LibTorchSharp\")]"; sprintf "extern static %s" body|]
+
     let namespace_(namespace_: string) (body: string[]) =
         [| 
             yield sprintf "namespace %s" namespace_
@@ -80,3 +89,11 @@ module CSharp =
         |]
 
     let using(firstLine) (body:string[]) = func(sprintf "using (%s)" firstLine) body
+    let unsafe (body: string[]) = func "unsafe" body 
+    let fixed_(args: string) (body: string[]) = func (sprintf "fixed(%s)" args) body
+    let nestedFixed (args: string[]) (body: string[]) =
+        match args with
+        | [||] -> body
+        | [|x|] -> fixed_ x body
+        | _ -> (args,body) ||> Array.foldBack (fun x body -> fixed_ x body) 
+

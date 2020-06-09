@@ -70,11 +70,15 @@
     <None Include="Rust\torch_api_generated.h" />
     <None Include="Rust\torch_api_generated.cpp.h" />
     <None Include="V2Parser.fsx" />
+    <None Include="V2Filtered.fsx">
+      <Link>V2Filtered.fsx</Link>
+    </None>
     <None Include="V2CodeGenHL.fsx" />
     <None Include="V2CodeGenLL.fsx" />
     <None Include="V2CodeGenLLTorchSharp.fsx" />
     <None Include="Common.fsx" />
     <None Include="THSTensor.h" />
+    <None Include="V2CodeGenLLTorchSharpLegacy.fsx" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="DiffPlex">

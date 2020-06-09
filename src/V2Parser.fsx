@@ -157,6 +157,15 @@ let (|Tensor|_|) (x:BT) =
     | BT.ConstTensor -> Some(x)
     | _ -> None
 
+let (|TensorOrScalar|_|) (x:BT) = 
+    match x with
+    | Tensor _ 
+    | BT.Scalar
+    | BT.ScalarOptional
+    | BT.TensorVector
+    | BT.ConstTensor -> Some(x)
+    | _ -> None
+
 // Keys [|"annotation"; "dynamic_type"; "is_nullable"; "name"; "type"; "default";
 //    "kwarg_only"; "allocate"; "output"; "size"; "field_name"|]
 type Arg = {
