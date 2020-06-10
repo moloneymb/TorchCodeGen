@@ -34,30 +34,7 @@ open System.IO
 
 let MaxLineWidth = 120
 
-
-let aditionalFiltered = 
-    set [
-        // These have mixed return tuples
-        "_batch_norm_impl_index","" // (Tensor * Tensor * Tensor * Tensor * int)
-        "fbgemm_linear_quantize_weight","" // (Tensor * Tensor * double * int)
-        "convolution_backward_overrideable","" // Bool3
-        "from_file","" // BoolOptional
-        "to","device" // MemoryFormatOptional
-        "item","" //Scalar return type
-        "_local_scalar_dense","" // Scalar return type
-        "set_quantizer_", "" // ConstQuantizerPtr
-        "qscheme", "" // QScheme
-    ]
-
-let schemas = 
-    V2Filtered.filtered_schemas()
-    |> Array.filter (fun x -> x.args |> Array.exists (fun x -> match x.type_ with | BT.Dimname | BT.DimnameList | BT.DimnameListOptional -> true | _ -> false) |> not)
-    |> Array.filter (fun x -> x.name.EndsWith("backward") |> not)
-    |> Array.filter (fun x -> x.name.EndsWith("backward_out") |> not)
-    |> Array.filter (fun x -> x.args |> Array.exists (fun x -> match x.type_ with | BT.Generator -> true | _ -> false) |> not)
-    |> Array.filter (fun x -> aditionalFiltered.Contains(x.name,x.overloadName) |> not)
-
-let getSchema(x,y) = schemas |> Array.find (fun z -> z.name = x && z.overloadName = y) 
+//let getSchema(x,y) = schemas |> Array.find (fun z -> z.name = x && z.overloadName = y) 
 
 
 let TensorAllocator = "Tensor* (*allocator)(size_t length)"
@@ -323,7 +300,7 @@ let getCSharpArg(arg: Arg) : string =
 //        else y
 //topk.args |> Array.map getCSharpArg
 
-let genHeader (singleLine: bool, forExport: bool) (schema: Schema) : string = 
+let genHeader (singleLine: bool, forExport: bool) (schema: Schema) : string[] = 
     let r = schema.Return
     let overloadedName = schema.FunctionName
     let args = 
@@ -333,11 +310,15 @@ let genHeader (singleLine: bool, forExport: bool) (schema: Schema) : string =
         if forExport then sprintf "EXPORT_API(%s)" r.Return
         else r.Return
     if singleLine then
-        sprintf "%s THSTensor_%s(%s)" returnWithExport overloadedName (args |> String.concat ", ")
+        [|sprintf "%s THSTensor_%s(%s)" returnWithExport overloadedName (args |> String.concat ", ")|]
     else 
-        sprintf "%s THSTensor_%s(\n    %s)" returnWithExport overloadedName (args |> String.concat ",\n    ")
+        [|
+            yield sprintf "%s THSTensor_%s(\n" returnWithExport overloadedName 
+            yield! args |> indent
+        |] |> closeParen
+         
 
-let genCpp(schema: Schema) = 
+let genCpp(schema: Schema) : string[] = 
     let r = schema.Return
     let first,tailArgs = 
         match schema.methodOfNamespace, schema.methodOfTensor with
@@ -418,12 +399,13 @@ let genCpp(schema: Schema) =
                 yield! manyLines |> addFinalSemiColon
         | _ -> failwithf "todo %A" r
     |]
-    |> func (genHeader (true,true) schema 
-             |> fun x -> if x.Length < MaxLineWidth then x else genHeader (false,true) schema) 
-    |> String.concat Environment.NewLine
+    |> fun body -> 
+        let singleLine = (genHeader (true,false) schema).[0] 
+        if singleLine.Length < MaxLineWidth then func singleLine body
+        else funcMany (genHeader (false,false) schema) body
 
 
-let genCSharp(schema: Schema) : string = 
+let genCSharp(schema: Schema) : string[] = 
     let rt = 
         match schema.Return with
         | RT.Empty -> "void"
@@ -527,7 +509,7 @@ let genCSharp(schema: Schema) : string =
             |> fun ys -> nestedFixed ys xs
         else xs
     |> fun xs -> if isUnsafe then unsafe xs else xs
-    |> func firstLine |> indent |> indent |> String.concat System.Environment.NewLine
+    |> func firstLine //|> indent |> indent |> String.concat System.Environment.NewLine
 
 
 //let topk = getSchema("topk","") //|> genImport(false)
@@ -547,16 +529,16 @@ let genCSharp(schema: Schema) : string =
 
 // TODO double
 
-let toDoSchemas = 
-    [|
-        for x in schemas  ->
-            try
-                (x |> genCSharp |> ignore)
-                None
-            with | _ -> Some(x)
-    |] |> Array.choose id
-
-toDoSchemas |> Array.map (fun x -> x.name,x.overloadName)
+//let toDoSchemas = 
+//    [|
+//        for x in schemas  ->
+//            try
+//                (x |> genCSharp |> ignore)
+//                None
+//            with | _ -> Some(x)
+//    |] |> Array.choose id
+//
+//toDoSchemas |> Array.map (fun x -> x.name,x.overloadName)
 
 // filter "from_file", "to", "item"
 

@@ -35,6 +35,8 @@ let multiLineParams(xs:string[]) =
 let addFinalSemiColon(xs: string[]) = 
     xs |> Array.mapi (fun i x -> if xs.Length - 1 = i then x+";" else x)
 
+let closeParen(xs: string[]) = 
+    xs |> Array.mapi (fun i x -> if xs.Length - 1 = i then x+")" else x)
 
 module Cpp = 
     // adds a semicolon to the last line
@@ -64,6 +66,12 @@ module Cpp =
     let func(firstLine) (body: string[]) = 
         [| yield firstLine; yield "{"; yield! body |> indent; yield "}" |]
 
+    let funcMany (functionLines: string[]) (body: string[]) = 
+        match functionLines with
+        | [||] -> failwith "err"
+        | [|x|] -> func x body
+        | xs -> [|yield xs.[0]; yield! xs.[1..] |> indent; yield "{"; yield! body |> indent; yield "}"|]
+        
     let ternaryIfThenElse(conditional : string, then_: string, else_: string) = 
         sprintf "%s ? %s : %s" conditional then_ else_
 
