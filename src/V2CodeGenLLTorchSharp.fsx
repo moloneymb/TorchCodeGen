@@ -7,7 +7,7 @@
 // Tensor and Scalar , e.g. bias ? *bias : at::Tensor() and for at::Scalar() etc.
 // If it's nullable we could just pass in a null pointer instead of guarding it with a with statement
 // Method of namespace torch::conv_transpose2d
-// Can we pass in Null in places of Tensors which are Nullable
+
 
 // Some missing methods with no obvious location for name
 //  [|(DimnameListOptional, 10); (ScalarTypeOptional, 1); (TensorList, 4); (IntOptional, 6); (ScalarOptional, 9)|]
@@ -31,16 +31,23 @@ open Cpp
 open System
 open System.IO
 
+let THSTensor = "THSTensor__"
 
 let MaxLineWidth = 120
-
-//let getSchema(x,y) = schemas |> Array.find (fun z -> z.name = x && z.overloadName = y) 
-
+let compressLines = compressLines MaxLineWidth
 
 let TensorAllocator = "Tensor* (*allocator)(size_t length)"
 let TensorAllocatorCSharp = "AllocatePinnedArray allocator"
 
-let defaultGuard = true
+let toCSharpName(name: string) = 
+    name |> underscoreToCamel |> CSharp.sainitize
+
+//"""
+//var res = THSTensor___cast_Byte(Handle,
+//        nonBlocking.HasValue,
+//        nonBlocking.HasValue ? nonBlocking.Value : false);
+//"""
+//
 
 /// A rule of thumb to determine if an argument should be gated
 /// or Null should be passed through
@@ -54,9 +61,11 @@ let canBeNull(t: BT) =
 type Arg with
 
     member x.Gated = 
-        not(canBeNull x.type_) && 
-        (x.isNullable || (not(defaultGuard) && x.defaultValue.IsSome)) &&
-        not(x.name = "options" && (match x.type_ with | BT.TensorOptions | BT.TensorOptionsAnd -> true | _ -> false))
+        if canBeNull x.type_ then false
+        else
+        //not(canBeNull x.type_) && 
+            (x.isNullable ||  x.defaultValue.IsSome) &&
+            not(x.name = "options" && (match x.type_ with | BT.TensorOptions | BT.TensorOptionsAnd -> true | _ -> false))
 
     member x.IsOptional = x.isNullable || x.defaultValue.IsSome
 
@@ -91,6 +100,7 @@ type Arg with
             | _ -> failwithf "todo %A" arg
 
     member arg.CSignature = 
+        //let argName = arg.name |> toCSharpName
         match arg.type_ with
         | BT.TensorOptions
         | BT.TensorOptionsAnd when arg.name = "options" -> "const int8_t scalar_type, const char* device, const bool requires_grad"
@@ -100,9 +110,9 @@ type Arg with
         | BT.Bool2 | BT.Bool3 | BT.Bool4 -> failwithf "todo %A" arg
         | BT.IntList -> sprintf "const int64_t* %s, const int %s_length" arg.name arg.name
         //| BT.TensorList when x.isNullable -> sprintf "int %s_kind, int %s_device" name name
-        | BT.TensorList (* when not x.isNullable *) -> sprintf "const Tensor* %s_data, const int %s_length" arg.name arg.name
+        | BT.TensorList (* when not x.isNullable *) -> sprintf "const Tensor* %s, const int %s_length" arg.name arg.name
         | BT.DimnameList -> failwithf "todo %A" arg
-        | BT.String -> Printf.sprintf "char* %s_ptr, int %s_len" arg.name arg.name
+        | BT.String -> Printf.sprintf "const char* %s" arg.name
 
             //| BaseType.Strig -> 
             //    sprintf "char* %s_ptr, int %s_len" name name
@@ -113,6 +123,7 @@ type Arg with
             | BT.Int
             | BT.IntOptional-> "const int64_t"
             | BT.Double -> "double"
+            | BT.DoubleOptional -> "double"
             | BT.Tensor -> "Tensor"
             | BT.TensorAnd -> "const Tensor"
             | BT.ConstTensor -> "const Tensor"
@@ -132,31 +143,30 @@ type Arg with
             else x
 
     member arg.CSharpInteropSignature = 
+        let argName = arg.name |> toCSharpName
         match arg.type_ with
         | BT.TensorOptions
-        | BT.TensorOptionsAnd when arg.name = "options" -> "sbyte scalar_type, IntPtr device, bool requires_grad"
-        | BT.TensorOptions
-        | BT.TensorOptionsAnd -> sprintf "int %s_kind, int %s_device" arg.name arg.name
-
+        | BT.TensorOptionsAnd when arg.name = "options" -> 
+            "sbyte scalarType, [MarshalAs(UnmanagedType.LPStr)] string device, bool requiresGrad"
+//        | BT.TensorOptions
+//        | BT.TensorOptionsAnd -> sprintf "int %s_kind, int %s_device" argName argName
         | BT.Bool2 | BT.Bool3 | BT.Bool4 -> failwithf "todo %A" arg
-        | BT.IntList -> sprintf "IntPtr %s, int %s_length" arg.name arg.name
+        | BT.IntList -> sprintf "IntPtr %s, int %s_length" argName argName
         //| BT.TensorList when x.isNullable -> sprintf "int %s_kind, int %s_device" name name
-        | BT.TensorList (* when not x.isNullable *) -> sprintf "IntPtr %s_data, int %s_length" arg.name arg.name
+        | BT.TensorList (* when not x.isNullable *) -> sprintf "IntPtr %s, int %s_length" argName argName
         | BT.DimnameList -> failwithf "todo %A" arg
-        | BT.String -> Printf.sprintf "IntPtr %s_ptr, int %s_len" arg.name arg.name
-
-            //| BaseType.Strig -> 
-            //    sprintf "char* %s_ptr, int %s_len" name name
         | _ when arg.type_.IsArray -> failwithf "err %A" arg
         | _ ->
             match arg.type_ with
+            | BT.String -> "[MarshalAs(UnmanagedType.LPStr)] string"
             | BT.Bool -> "bool" // when is this bool or int??
             | BT.Int
             | BT.IntOptional-> "long"
             | BT.Double -> "double"
-            | BT.Tensor -> "Tensor"
-            | BT.TensorAnd -> "Tensor"
-            | BT.ConstTensor -> "Tensor"
+            | BT.DoubleOptional -> "double"
+            | BT.Tensor -> "IntPtr"
+            | BT.TensorAnd -> "IntPtr"
+            | BT.ConstTensor -> "IntPtr"
             | BT.ScalarType 
             | BT.ScalarTypeOptional -> "sbyte"
             //| BT.Device -> "int"
@@ -166,20 +176,20 @@ type Arg with
             | BT.MemoryFormat 
             | BT.MemoryFormatOptional -> "MemoryFormat" // unsure about this
             | _ -> (string arg.type_) //failwithf "err %A" x
-            |> fun x -> sprintf "%s %s" x arg.name 
+            |> fun x -> sprintf "%s %s" x argName 
         |> fun x -> 
             if arg.Gated 
-            then sprintf "bool with_%s, %s" arg.name x
+            then sprintf "bool with_%s, %s" argName x
             else x
 
     member arg.CppToC =
         if arg.type_.IsArray then
             match arg.type_ with
-            | BT.IntList -> "at::ArrayRef<int64_t>"
-            | BT.TensorList -> "toTensor<at::Tensor>((torch::Tensor**)" 
+            | BT.IntList -> "at::ArrayRef<int64_t>" + (sprintf "(%s, %s_length)" arg.name arg.name)
+            | BT.TensorList -> "toTensors<at::Tensor>((torch::Tensor**)"  + (sprintf "%s, %s_length)" arg.name arg.name)
             //| BT.DimnameListOptional -> // NOTE: need to pull in additional headers to use Dimname
             | _ -> failwithf "todo cppToC %A " arg
-            |> fun x -> x + (sprintf "(%s, %s_length)" arg.name arg.name)
+            
         else
             match arg.type_ with
             | TensorOrScalar _ -> "*" + arg.name
@@ -193,8 +203,24 @@ type Arg with
                     | BT.Scalar, "{}"
                     | BT.ScalarOptional,"{}" -> "at::Scalar()"
                     | _ ,_ -> x)
+            let y = 
+                match arg.type_ with
+                | BT.ScalarOptional -> 
+                     sprintf "c10::optional<c10::Scalar>(%s)" y // Note: it's converted from at::Scalar to c10::Scalar
+                | BT.IntOptional -> 
+                     sprintf "c10::optional<int64_t>(%s)" y
+                | BT.DoubleOptional -> 
+                     sprintf "c10::optional<double>(%s)" y
+                | BT.ScalarType -> sprintf "c10::ScalarType(%s)" y
+                | BT.ScalarTypeOptional -> sprintf "c10::optional<c10::ScalarType>(c10::ScalarType(%s))" y
+                | BT.String -> sprintf "std::string(%s)" y
+                | _ -> y
             if arg.Gated then
-                ternaryIfThenElse(sprintf "with_%s" arg.name, y, defaultValue.Value)
+                match arg.type_ with
+                | BT.ScalarTypeOptional -> 
+                    ternaryIfThenElse(sprintf "with_%s" arg.name, y, "c10::nullopt")
+                | _ -> 
+                    ternaryIfThenElse(sprintf "with_%s" arg.name, y, defaultValue.Value)
             else
                 if (match arg.type_ with | BT.TensorOptions | BT.TensorOptionsAnd -> true | _ -> false) && arg.name = "options" then
                     y
@@ -202,8 +228,20 @@ type Arg with
                     if arg.isNullable && arg.defaultValue.IsSome then
                         ternaryIfThenElse(arg.name, y, defaultValue.Value)
                     else y
+    member this.IsTensor = match this.type_ with | Tensor _ -> true | _ -> false
+    member this.IsTensorOrScalar = match this.type_ with | TensorOrScalar _ -> true | _ -> false
+    member this.ParameterNullable = this.isNullable || this.defaultValue.IsSome 
+    /// Not wrappable in Nullable<T>
+    member this.Nullableable = 
+        match this.type_ with
+        | BT.IntList 
+        | TensorOrScalar _ -> false
+        | _ -> true
 
 
+    /// Wrappable in a Nullable<T> object in a parameter
+    /// This is expected to be expanded
+//    let isNullableable(arg: Arg) = 
 type BT with
     member x.ReqPinning = 
         x.IsArray || 
@@ -237,6 +275,7 @@ type RT =
         | RT.Empty
         | RT.ManyTensor
         | RT.TensorTuple _ -> "void"
+        | RT.Single BT.ScalarType -> "int8_t"
         | _ -> failwithf "TODO %A" this
 
 type Schema with
@@ -261,6 +300,27 @@ type Schema with
     member this.FunctionName = 
         this.name + this.overloadName + (if this.name.EndsWith("_") then "_" else "")
 
+    member this.HasOptions = 
+        this.args |> Array.exists (fun x -> 
+            match x.type_ with 
+            | BT.TensorOptions
+            | BT.TensorOptionsAnd when x.name = "options" -> true
+            | _ -> false)
+
+    member schema.IsInstanceAndSelfName = 
+        let isInstanceMember = schema.methodOfTensor = Some(true)
+        let name = 
+            if not isInstanceMember then None
+            else 
+                // it appears that instance memebers may not be the first argument (e.g. polygamma)
+                // special casing for the second argument
+                // TODO maybe generalize this
+                match schema.args |> Array.toList with
+                | [] -> None
+                | (x::xs) when (match x.type_ with | Tensor _ -> true | _ -> false) -> Some(schema.args.[0].name)
+                | (_::x::xs) when (match x.type_ with | Tensor _ -> true | _ -> false) ->  Some(schema.args.[1].name)
+                | _ ->  None
+        (isInstanceMember,name)
 
 let genImport(singleLine: bool) (schema: Schema): string  = 
     let ret = 
@@ -269,6 +329,7 @@ let genImport(singleLine: bool) (schema: Schema): string  =
         | RT.Single BT.Bool -> "bool"
         | RT.Single BT.Int -> "int"
         | RT.Single BT.Double -> "double"
+        | RT.Single BT.ScalarType -> "sbyte"
         | RT.SingleScalar
         | RT.SingleTensor -> "IntPtr"
         | RT.ManyTensor -> "void"
@@ -277,21 +338,13 @@ let genImport(singleLine: bool) (schema: Schema): string  =
 
     let args = 
         schema.args |> Array.map (fun x -> x.CSharpInteropSignature)
-        |> fun xs -> if schema.Return.HasAllocator then [|yield xs.[0]; yield TensorAllocatorCSharp; yield! xs.[1..]|] else xs
+        |> fun xs -> if schema.Return.HasAllocator then Array.append [|TensorAllocatorCSharp;|] xs else xs //[|yield xs.[0]; yield  yield! xs.[1..]|] else xs
     let firstLine = 
-        sprintf "private static extern %s %s(" ret schema.FunctionName 
+        sprintf "private static extern %s %s%s(" ret THSTensor schema.FunctionName 
     if singleLine 
     then sprintf "%s%s);" firstLine (args |> String.concat ", ")
-    else sprintf "%s\n    %s);" firstLine (args |> String.concat ",\n    ")
+    else sprintf "%s%s    %s);" firstLine Environment.NewLine (args |> String.concat (sprintf ",%s    " Environment.NewLine))
 
-let getCSharpArg(arg: Arg) : string = 
-    let argType = arg.CSharpType
-    let name = (arg.name |> underscoreToCamel)
-    if arg.isNullable || arg.defaultValue.IsSome then
-        // NOTE: Not all types have a '?'
-        sprintf "%s? %s = null" argType name
-    else
-        sprintf "%s %s" argType arg.name
 
 //|> fun x -> sprintf "%s %s" x name 
 //    |> fun y -> 
@@ -305,18 +358,20 @@ let genHeader (singleLine: bool, forExport: bool) (schema: Schema) : string[] =
     let overloadedName = schema.FunctionName
     let args = 
         schema.args |> Array.map (fun x -> x.CSignature)
-        |> fun xs -> if r.HasAllocator then [|yield xs.[0]; yield TensorAllocator; yield! xs.[1..]|] else xs
+        |> fun xs -> if r.HasAllocator then Array.append [|TensorAllocator|] xs (*[|yield xs.[0]; yield TensorAllocator; yield! xs.[1..]|]*) else xs
     let returnWithExport = 
         if forExport then sprintf "EXPORT_API(%s)" r.Return
         else r.Return
     if singleLine then
-        [|sprintf "%s THSTensor_%s(%s)" returnWithExport overloadedName (args |> String.concat ", ")|]
+        [|sprintf "%s %s%s(%s)" returnWithExport THSTensor overloadedName (args |> String.concat ", ")|]
     else 
         [|
-            yield sprintf "%s THSTensor_%s(\n" returnWithExport overloadedName 
-            yield! args |> indent
-        |] |> closeParen
-         
+            yield sprintf "%s %s%s(" returnWithExport THSTensor  overloadedName 
+            yield! 
+                match args |> multiLineParams with
+                | [||] -> [|")"|]
+                | xs -> xs
+        |] 
 
 let genCpp(schema: Schema) : string[] = 
     let r = schema.Return
@@ -325,12 +380,7 @@ let genCpp(schema: Schema) : string[] =
         | Some(true),_ -> (sprintf "torch::%s(" schema.name, schema.args)
         | _, Some(true) -> ((sprintf "%s->%s(") schema.args.[0].name schema.name, schema.args.[1..])
         | _, _ -> failwith "err - come back to this if needed"
-    let hasOptions = 
-        schema.args |> Array.exists (fun x -> 
-            match x.dynamicType with 
-            | BT.TensorOptions
-            | BT.TensorOptionsAnd when x.name = "options" -> true
-            | _ -> false)
+
     let options = [|
         "auto options = at::TensorOptions()"
         "    .dtype(at::ScalarType(scalar_type))"
@@ -342,7 +392,9 @@ let genCpp(schema: Schema) : string[] =
         let singleLine = xs |> String.concat ", "
         let manyLines = 
             schema.args |> Array.map (fun x -> x.CppToC) |> multiLineParams |> indent 
-        if hasOptions then yield! options
+        if schema.HasOptions 
+        then 
+            yield! options
         match r with
         | RT.SingleScalar -> 
             if singleLine.Length < MaxLineWidth then
@@ -372,7 +424,7 @@ let genCpp(schema: Schema) : string[] =
                     yield sprintf "Tensor * result = allocator(%i);" c
                     for i in 0..c-1 do
                         yield sprintf "result[%i] = new torch::Tensor(std::get<%i>(res));" i i
-                |] |> macro("CATCH",true)
+                |] //|> macro("CATCH",true)
         | RT.ManyTensor ->
             yield!
                 [|
@@ -382,20 +434,27 @@ let genCpp(schema: Schema) : string[] =
                     yield "Tensor * result = allocator(sz);"
                     yield "for (size_t i = 0; i < sz; i++)"
                     yield "    result[i] = new torch::Tensor(res[i]);"
-                |] |> macro("CATCH",true)
+                |] //|> macro("CATCH",true)
         | RT.Empty -> 
             if singleLine.Length < MaxLineWidth then
                 yield sprintf "CATCH(%s%s))" first singleLine
             else
                 yield!
-                    [| yield sprintf "    %s" first; yield! manyLines |> addFinalSemiColon |]
+                    [| yield sprintf "    %s" first; yield! manyLines |> closeParen |> addFinalSemiColon |]
                     |> macro("CATCH",true)
         | RT.Single BT.Int
+        | RT.Single BT.Double
         | RT.Single BT.Bool -> 
             if singleLine.Length < MaxLineWidth then
                 yield sprintf "return %s%s);" first singleLine
             else
                 yield sprintf "    return %s" first; 
+                yield! manyLines |> addFinalSemiColon
+        | RT.Single BT.ScalarType -> 
+            if singleLine.Length < MaxLineWidth then
+                yield sprintf "return (int8_t) %s%s);" first singleLine
+            else
+                yield sprintf "    return (int8_t) %s" first; 
                 yield! manyLines |> addFinalSemiColon
         | _ -> failwithf "todo %A" r
     |]
@@ -417,16 +476,29 @@ let genCSharp(schema: Schema) : string[] =
         | RT.Single BT.ScalarType -> "ScalarType"
         | RT.Single x -> failwithf "return type not yet supported %A" x
         | RT.TensorTuple n -> 
-            [|for x in schema.returns -> sprintf "TorchTensor %s" x.name|] 
+            [|for x in schema.returns -> sprintf "TorchTensor %s" (x.name |> toCSharpName)|] 
             |> String.concat ", " |> sprintf "(%s)"
         | RT.ManyTensor -> "TorchTensor[]"
     
-    let isInstanceMember,args = 
-        schema.args 
-        |> Array.tryHead 
-        |> Option.map (fun x -> match x.type_ with | Tensor _ -> true | _ -> false) 
-        |> Option.defaultValue false
-        |> function | true -> true,schema.args.[1..] | _ -> false,schema.args
+    let isInstanceMember,selfName = schema.IsInstanceAndSelfName
+    let args = schema.args
+
+//    let isInstanceMember = schema.methodOfTensor = Some(true)
+//    let args = 
+//        if not isInstanceMember then schema.args
+//        else 
+//            // it appears that instance memebers may not be the first argument (e.g. polygamma)
+//            match schema.args |> Array.toList with
+//            | [] -> [||]
+//            | (x::xs) when (match x.type_ with | Tensor _ -> true | _ -> false) -> schema.args.[1..]
+//            | (_::x::xs) when (match x.type_ with | Tensor _ -> true | _ -> false) -> [|yield schema.args.[0]; yield! schema.args.[2..]|]
+//            | _ -> schema.args
+
+//        schema.args 
+//        |> Array.tryHead 
+//        |> Option.map (fun x -> match x.type_ with | Tensor _ -> true | _ -> false) 
+//        |> Option.defaultValue false
+//        |> function | true -> true,schema.args.[1..] | _ -> false,schema.args
     // Checking to see if we have optional after non-optional and we do... so this is commented out now
 //    (false,schema.args) 
 //    ||> Array.fold (fun isOptional (x:Arg) -> 
@@ -434,58 +506,142 @@ let genCSharp(schema: Schema) : string[] =
 //        else (if isOptional then failwith "Optional arguments should appear after all required arguments" else false)) 
 //    |> ignore<bool>
         
-    let hasOptions,args = 
-        let f (x:Arg) : bool = 
-            match x.type_ with 
-            | BT.TensorOptions 
-            | BT.TensorOptionsAnd when x.name = "options" -> true
-            | _ -> false
-        (args |> Array.exists f),(args |> Array.filter (fun x -> f x |> not))
+    let getCSharpArg(arg: Arg) : string = 
+        let argType = arg.CSharpType
+        let name = (arg.name |> toCSharpName)
+        match arg.ParameterNullable, arg.Nullableable with 
+        | true,true-> sprintf "%s? %s = null" argType  name 
+        | true,false -> sprintf "%s %s = null" argType name 
+        | false,_ -> sprintf "%s %s" argType name
 
-    // TODO handle hasOptions
     let parameters = 
-        args |> Array.partition (fun x -> x.IsOptional) |> fun (xs,ys) -> [|yield! ys; yield! xs|]
-        |> Array.map getCSharpArg |> String.concat ", "
-    let name = (schema.name|> Common.underscoreToCamel) // NOTE: Not using overload
+        args 
+        |> Array.partition (fun x -> x.IsOptional) 
+        |> fun (xs,ys) -> [| yield! ys; yield! xs |]
+        |> Array.filter (fun x -> 
+            match x.type_ with 
+            | BT.TensorOptions
+            | BT.TensorOptionsAnd when x.name = "options" -> false
+            | _ -> true)
+        |> Array.map getCSharpArg 
+        |> fun xs -> 
+                if not schema.HasOptions then xs
+                else 
+                    xs |> Array.prepend [|
+                        "ScalarType dtype = ScalarType.Float"
+                        "string device = \"cpu\""
+                        "bool requiresGrad = true"
+                    |]
+        |> String.concat ", "
+    let name = (schema.name|> toCSharpName) // NOTE: Not using overload
     let firstLine = 
         sprintf "public %s%s %s(%s)" 
-            (if isInstanceMember then "static " else "") rt name parameters
+            (if not isInstanceMember then "static " else "") rt name parameters
     let anyPinning = args.Length > 0 && args |> Array.exists (fun x -> x.type_.ReqPinning)
     let isUnsafe = anyPinning // || ... todo other reasons
     let hasAllocator = match schema.Return with | RT.TensorTuple _ | RT.ManyTensor -> true | _ -> false
     
     let cArgs = 
-        ([| 
-            if isInstanceMember then yield "Handle" 
-            elif args.Length > 0 then yield sprintf "%s.Handle" args.[0].name
+        [| 
+            // This complication is arond the allocator function, instead we will add it to the first parameter
             if hasAllocator then yield "pa.CreateArray"
+            //elif args.Length > 0 then yield sprintf "%s.Handle" args.[0].name |> toCSharpName 
             for arg in args do
-                if arg.Gated then
-                    yield sprintf "with_%s" arg.name
-                    yield arg.name
-                else
-                    yield if arg.type_.ReqPinning then sprintf "(IntPtr)p%s" arg.name else arg.name
-                if arg.type_.IsArray then
-                    yield sprintf "%s.Length" arg.name
-        |] |> String.concat ", ")
+                match arg.type_ with
+                | BT.TensorOptions
+                | BT.TensorOptionsAnd when arg.name = "options" -> ()
+                | _ -> 
+                    if isInstanceMember && Some(arg.name) = selfName then 
+                        yield "Handle" 
+                    else
+                        let argName = arg.name |> toCSharpName 
+                        let conversion = 
+                            match arg.type_ with
+                            | BT.ScalarType
+                            | BT.ScalarTypeOptional-> "(sbyte) "
+                            //| BT.TensorList 
+                            //| BT.TensorVector -> "(IntPtr) "
+                            | _ -> ""
+                        if arg.IsTensorOrScalar then 
+                            match arg.ParameterNullable, arg.Nullableable, arg.type_.IsArray with
+                            | _,_,true-> yield sprintf "(IntPtr) p%s" argName
+                            | true,false,_ -> yield sprintf "%sPtr" argName
+                            | _,_,false -> yield argName + ".Handle"
+                        elif arg.Gated then 
+                            // This is based on type and is completely ignored
+                            let cSharpDefault = 
+                                match arg.type_ with
+                                | BT.BoolOptional
+                                | BT.Bool -> "false"
+                                | BT.DoubleOptional
+                                | BT.Double -> "0.0"
+                                | BT.Int 
+                                | BT.IntOptional -> "-1"
+                                | TensorOrScalar _ -> "IntPtr.Zero"
+                                | BT.ScalarType 
+                                | BT.ScalarTypeOptional -> "ScalarType.Float"
+                                | BT.DoubleOptional
+                                | _ -> "todo"
+                            yield sprintf "%s.HasValue" argName
+                            yield sprintf "%s%s.GetValueOrDefault(%s)" conversion argName cSharpDefault
+                        elif arg.isNullable then 
+                            yield conversion + argName
+                        else 
+                            if arg.type_.ReqPinning 
+                            then yield "(IntPtr) p" + argName
+                            else yield conversion + argName 
+                        if arg.type_.IsArray then
+                            yield sprintf "%s.Length" argName
+            if schema.HasOptions then yield! [|"(sbyte) dtype"; "device"; "requiresGrad"|]
+        |] 
 
-    let checkForErrors = "Torch.CheckFOrErrors()"
-    let nativeCall = sprintf "THSTensor_%s(%s);" schema.FunctionName cArgs
+    let checkForErrors = "Torch.CheckForErrors();"
+
+    let emptyDefaults = 
+        [| 
+            for arg in args do
+                let name = arg.name |> toCSharpName
+                match arg.ParameterNullable, arg.Nullableable with
+                | false,true-> ()
+                | false,false -> yield sprintf "_ = %s ?? throw new ArgumentNullException(nameof(%s));" name name
+                | true,true -> () // Nullable<T> are handled elsewhere
+                | true,false -> 
+                    yield
+                        match arg.type_ with
+                        | BT.TensorVector
+                        | BT.TensorList -> 
+                            sprintf "%s ??= new TorchTensor[0];" name
+                        | TensorOrScalar _ -> 
+                            sprintf "IntPtr %sPtr = %s is null ? IntPtr.Zero : %s.Handle;" name name name
+                        | BT.IntList -> sprintf "%s ??= new long[0];" name 
+                        | _ -> sprintf "// todo %A" arg.type_
+        |]
+
+    let nativeCall = 
+        [| yield sprintf "%s%s(" THSTensor schema.FunctionName; yield! cArgs |> multiLineParams |> indent|]
+        |> compressLines |> addFinalSemiColon
+
     [|
         match schema.Return with 
         | RT.TensorTuple _ | RT.ManyTensor ->
             yield "IntPtr[] ptrArray;"
             yield! 
-                [|nativeCall; checkForErrors ; "ptrArray = pa.Array;"|]
+                [|yield! nativeCall; yield checkForErrors ; yield "ptrArray = pa.Array;"|]
                 |> func "using (var pa = new PinnedArray<IntPtr>())"
             match schema.Return with
             | RT.TensorTuple n -> 
-                yield sprintf "return (%s);"  ([|for i in 0 .. n - 1 -> sprintf "new TorchTensor(ptrArray[%i])" i|] |> String.concat ", ")
+                yield!
+                    [|
+                        yield "return ("
+                        yield! 
+                            [|for i in 0 .. n - 1 -> sprintf "new TorchTensor(ptrArray[%i])" i|]
+                            |> multiLineParams |> addFinalSemiColon
+                    |] |> compressLines
             | RT.ManyTensor -> 
                 yield "return ptrArray.Select(x => new TorchTensor(x)).ToArray();"
             | _ -> failwith "err"
         | RT.SingleTensor -> 
-            yield sprintf "var res = %s" nativeCall
+            yield! prefixFirstLine  "var res = " nativeCall
             yield checkForErrors
             yield "return new TorchTensor(res);"
         | RT.SingleScalar -> 
@@ -493,9 +649,9 @@ let genCSharp(schema: Schema) : string[] =
         | RT.Single BT.Bool 
         | RT.Single BT.Int
         | RT.Single BT.Double
-            -> yield sprintf "return %s" nativeCall
+            -> yield! prefixFirstLine "return "  nativeCall
         | RT.Single BT.ScalarType 
-            -> yield sprintf "(ScalarType) return %s" nativeCall
+            -> yield! prefixFirstLine "return (ScalarType) " nativeCall
         | _ -> failwith "todo"
     |] 
     |> fun xs -> 
@@ -504,13 +660,30 @@ let genCSharp(schema: Schema) : string[] =
             |> Array.filter (fun x -> x.type_.ReqPinning)
             |> Array.groupBy (fun x -> x.type_)
             |> Array.map (fun (_,ys) -> 
-                sprintf "%s* %s" ys.[0].CSharpType 
-                    (ys |> Array.map (fun y -> sprintf "p%s = %s" y.name y.name) |> String.concat ", "))
+                let fixedType = 
+                    match ys.[0].type_ with
+                    | BT.IntList -> "long"
+                    | BT.TensorVector
+                    | BT.TensorList -> "IntPtr"
+                    | _ -> "todo"
+
+                sprintf "%s* %s" fixedType
+                    (ys |> Array.map (fun y -> 
+                        let yName = y.name |> toCSharpName
+                        let yName' = match y.type_ with | BT.TensorVector | BT.TensorList -> yName + ".Select(x => x.Handle).ToArray()" | _ -> yName
+                        sprintf "p%s = %s" yName yName') |> String.concat ", "))
             |> fun ys -> nestedFixed ys xs
         else xs
+    |> Array.append emptyDefaults
     |> fun xs -> if isUnsafe then unsafe xs else xs
-    |> func firstLine //|> indent |> indent |> String.concat System.Environment.NewLine
+    |> func firstLine 
 
+    //|> Array.prepend [|""|]
+    //|> indent |> indent |> String.concat System.Environment.NewLine
+
+
+// Array.append [|1|] [|2|]
+// Array.prepend [|1|] [|2|]
 
 //let topk = getSchema("topk","") //|> genImport(false)
 //let conv2d = getSchema("conv2d","") //|> genImport(false)
@@ -591,15 +764,6 @@ let genCSharp(schema: Schema) : string[] =
 //    ("result_type", "Scalar_Tensor"); ("result_type", "Scalar_Scalar");
 //    ("promote_types", "")|]
 //let failingReturns = toDoSchemas |> Array.filter (fun x -> try x.Return |> ignore; false with | _ -> true) //|> Array.map (fun x -> x.name,x.overloadName)
-//
-//failingReturns.[2].returns
-//failingReturns.[4].name
-//failingReturns.[0].returns
-//failingReturns.[3].returns
-//failingReturns.[6].returns
-//failingReturns.[8].returns
-//
-//"result_type" // ScalarType
 
 
 //|> Array.map (fun x -> x.name)

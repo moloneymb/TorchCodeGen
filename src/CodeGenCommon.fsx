@@ -1,5 +1,6 @@
 ﻿open System
 
+
 let [<Literal>] INDENT = "    "
 
 module String = 
@@ -15,6 +16,8 @@ let appendParam (x:string) = if String.IsNullOrWhiteSpace(x) then x else x + ", 
 let prependParam (x:string) = if String.IsNullOrWhiteSpace(x) then x else ", " + x
 
 module Array = 
+    let prepend xs ys = Array.append ys xs
+
     let concatWith (xs:seq<'a[]>) (ys:'a[]) = 
         let rec f (xs:List<'a[]>) : 'a[] = 
             [|
@@ -30,17 +33,21 @@ let concatWithNewLine (xs:string[][]) : string[] = Array.concatWith xs [|""|]
 let indent (xs: string[]) = xs |> Array.map (fun x -> INDENT + x)
 
 let multiLineParams(xs:string[]) = 
-    xs |> Array.mapi (fun i x -> x + if xs.Length - 1 = i then ")" else ",")
+    match xs with 
+    | [||] -> [|")"|]
+    | _ -> xs |> Array.mapi (fun i x -> x + if xs.Length - 1 = i then ")" else ",")
 
 let addFinalSemiColon(xs: string[]) = 
-    xs |> Array.mapi (fun i x -> if xs.Length - 1 = i then x+";" else x)
+    match xs with
+    | [||] -> [|";"|]
+    | _ -> xs |> Array.mapi (fun i x -> if xs.Length - 1 = i then x+";" else x)
 
 let closeParen(xs: string[]) = 
     xs |> Array.mapi (fun i x -> if xs.Length - 1 = i then x+")" else x)
 
 module Cpp = 
     // adds a semicolon to the last line
-    let semicolon (xs:string[]) = match xs with | [||] -> [||] | _ -> [|yield! xs.[0..xs.Length - 2]; yield xs.[xs.Length-1] + ";"|]
+    let semicolon (xs:string[]) = match xs with | [||] -> [|";"|] | _ -> [|yield! xs.[0..xs.Length - 2]; yield xs.[xs.Length-1] + ";"|]
     // Require new line
     let macro(name: string, break_ : bool) (lines: string[]) = 
         match lines, break_ with
@@ -78,6 +85,23 @@ module Cpp =
 
 module CSharp = 
     open Cpp
+    let keywords = 
+        set [|
+            "abstract"; "as"; "base"; "bool"; "break"; "byte"; "case"; "catch"; "char";
+            "checked"; "class"; "const"; "continue"; "decimal"; "default"; "delegate";
+            "do"; "double"; "else"; "enum"; "event"; "explicit"; "extern"; "false";
+            "finally"; "fixed"; "float"; "for"; "foreach"; "goto"; "if"; "implicit";
+            "in"; "int"; "interface"; "internal"; "is"; "lock"; "long"; "namespace";
+            "new"; "null"; "object"; "operator"; "out"; "override"; "params";
+            "private"; "protected"; "public"; "readonly"; "ref"; "return"; "sbyte";
+            "sealed"; "short"; "sizeof"; "stackalloc"; "static"; "string"; "struct";
+            "switch"; "this"; "throw"; "true"; "try"; "typeof"; "uint"; "ulong";
+            "unchecked"; "unsafe"; "ushort"; "using"; "virtual"; "void"; "volatile";
+            "while"|]
+
+    let sainitize (x:string) = if keywords.Contains(x) then x+"_" else x
+// CSharp
+
     let extern_(body: string) = [| "[DllImport (\"LibTorchSharp\")]"; sprintf "extern static %s" body|]
 
     let namespace_(namespace_: string) (body: string[]) =
@@ -105,3 +129,14 @@ module CSharp =
         | [|x|] -> fixed_ x body
         | _ -> (args,body) ||> Array.foldBack (fun x body -> fixed_ x body) 
 
+let compressLines (maxLine:int) (xs: string[]) = 
+    if xs.Length = 0 || xs.Length = 0 then xs
+    else
+        let singleLine = [|yield xs.[0]; yield! xs.[1..] |> Array.map (fun x -> x.Trim())|] |> String.concat " "
+        if singleLine.Length <= maxLine then [|singleLine|]
+        else xs
+
+
+let prefixFirstLine (prefix:string) (xs:string[]) = 
+    if xs.Length = 0 then [||]
+    else [|yield prefix + xs.[0]; yield! xs.[1..]|]
