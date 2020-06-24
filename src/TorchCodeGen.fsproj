@@ -50,8 +50,6 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <None Include="Declarations-v1.5.0.yaml.txt" />
-    <None Include="TorchMetadata.yaml.txt" />
-    <None Include="TargetModuleCpp.fsx" />
     <None Include="WPFEventLoop.fsx" />
     <None Include="DiffPlex.fsx" />
     <None Include="Clippy.fsx" />

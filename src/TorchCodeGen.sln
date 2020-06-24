@@ -5,6 +5,8 @@ VisualStudioVersion = 16.0.29926.136
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "TorchCodeGen", "TorchCodeGen.fsproj", "{98C18C14-8E7B-4CA9-A5BA-4B61975A30A2}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "TorchCodeGen2", "..\TorchCodeGen2\TorchCodeGen2.fsproj", "{BD2D4D6D-9742-422F-88E6-CF0F7B7A0C34}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{98C18C14-8E7B-4CA9-A5BA-4B61975A30A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{98C18C14-8E7B-4CA9-A5BA-4B61975A30A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{98C18C14-8E7B-4CA9-A5BA-4B61975A30A2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BD2D4D6D-9742-422F-88E6-CF0F7B7A0C34}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BD2D4D6D-9742-422F-88E6-CF0F7B7A0C34}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BD2D4D6D-9742-422F-88E6-CF0F7B7A0C34}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BD2D4D6D-9742-422F-88E6-CF0F7B7A0C34}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

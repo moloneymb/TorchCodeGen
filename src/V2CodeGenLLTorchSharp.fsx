@@ -14,18 +14,18 @@
 //   schemas |> Array.collect (fun x -> (x.args |> Array.filter (fun x -> x.dynamicType <> BT.Tensor && x.isNullable && x.defaultValue.IsNone))) |> Array.map (fun x -> x.type_) |> Array.countBy id
 
 #load "V2Parser.fsx"
-#load "V2Filtered.fsx"
-#load "DiffPlex.fsx"
-#load "Clippy.fsx"
-#load "TargetModuleCPP.fsx"
+//#load "V2Filtered.fsx"
+//#load "DiffPlex.fsx"
+//#load "Clippy.fsx"
+//#load "TargetModuleCPP.fsx"
 #load "Common.fsx"
 open Common
 open System
 open CodeGenCommon
 open V2Parser
-open TargetModuleCpp
-open Clippy
-open DiffPlex
+//open TargetModuleCpp
+//open Clippy
+//open DiffPlex
 open CSharp
 open Cpp
 open System
